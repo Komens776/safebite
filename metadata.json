@@ -1,0 +1,10 @@
+{
+  "name": "SafeBite GH",
+  "description": "An allergy scanner for Ghanaian foods powered by local classifications and the Gemini API, warning users of potential allergens and recommending safe alternative meals.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,85 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with safe food settings and active allergies",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Full name of the user"
+        },
+        "email": {
+          "type": "string",
+          "description": "Verified email of the user"
+        },
+        "allergies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Selected active allergens"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        }
+      },
+      "required": ["email", "allergies"]
+    },
+    "ScanHistory": {
+      "title": "ScanHistory",
+      "description": "Historical details of scanned or checked meals",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Reference UID of the scanning user"
+        },
+        "foodDetected": {
+          "type": "string",
+          "description": "Name of the classified Ghanaian food"
+        },
+        "allergensFound": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Allergens found inside the meal"
+        },
+        "isSafe": {
+          "type": "boolean",
+          "description": "Whether the meal is safe according to the user allergies profile"
+        },
+        "timestamp": {
+          "type": "integer",
+          "description": "Epoch timestamp in ms of when scan took place"
+        },
+        "ingredients": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Ingredients found or specified"
+        }
+      },
+      "required": ["userId", "foodDetected", "allergensFound", "isSafe", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Store individual allergy settings and info on user accounts"
+    },
+    "/scanHistory/{scanId}": {
+      "schema": "ScanHistory",
+      "description": "Scanned food records"
+    }
+  }
+}
