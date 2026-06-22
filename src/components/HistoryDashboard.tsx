@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, orderBy, deleteDoc, doc, writeBatch } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, handleFirestoreError, OperationType } from '../firebase';
 import { ScanItem, UserProfile } from '../types';
 import { ALLERGENS } from '../data/allergenMap';
 import { Search, Filter, Trash2, Calendar, ShieldCheck, ShieldAlert, ChevronRight, FileSpreadsheet, Sparkles, Smile, MessageSquareWarning } from 'lucide-react';
@@ -32,7 +32,13 @@ export default function HistoryDashboard({ user, profile, scanCount, onClearHist
         where('userId', '==', user.uid),
         orderBy('timestamp', 'desc')
       );
-      const snapshot = await getDocs(q);
+      let snapshot;
+      try {
+        snapshot = await getDocs(q);
+      } catch (err) {
+        handleFirestoreError(err, OperationType.GET, 'scanHistory');
+        return;
+      }
       const items: ScanItem[] = [];
       snapshot.forEach((docSnap) => {
         const d = docSnap.data();
@@ -63,7 +69,12 @@ export default function HistoryDashboard({ user, profile, scanCount, onClearHist
       scans.forEach((scan) => {
         batch.delete(doc(db, 'scanHistory', scan.id));
       });
-      await batch.commit();
+      try {
+        await batch.commit();
+      } catch (err) {
+        handleFirestoreError(err, OperationType.WRITE, 'scanHistory');
+        return;
+      }
       setScans([]);
       onClearHistory();
     } catch (err) {
@@ -75,7 +86,12 @@ export default function HistoryDashboard({ user, profile, scanCount, onClearHist
     e.stopPropagation();
     if (!window.confirm('Delete this scan entry from your logs?')) return;
     try {
-      await deleteDoc(doc(db, 'scanHistory', scanId));
+      try {
+        await deleteDoc(doc(db, 'scanHistory', scanId));
+      } catch (err) {
+        handleFirestoreError(err, OperationType.DELETE, `scanHistory/${scanId}`);
+        return;
+      }
       setScans(scans.filter(s => s.id !== scanId));
       onClearHistory();
     } catch (err) {

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Camera, Upload, AlertCircle, Sparkles, CheckCircle2, RefreshCw, HelpCircle, Utensils, HeartHandshake } from 'lucide-react';
 import { collection, addDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, handleFirestoreError, OperationType } from '../firebase';
 import { UserProfile, ScanItem, AlternativeMeal } from '../types';
 import { GHANAIAN_FOODS_DB, getAllergensForIngredient, getSafeAlternatives, getAllergenInfoTip, ALLERGENS } from '../data/allergenMap';
 
@@ -169,14 +169,19 @@ export default function MealScanner({ user, profile, onScanSaved, setActiveTab, 
 
       // 5. Save History item to Firebase
       if (user) {
-        await addDoc(collection(db, 'scanHistory'), {
-          userId: user.uid,
-          foodDetected: foodDetected.charAt(0).toUpperCase() + foodDetected.slice(1),
-          allergensFound: allergensFound,
-          isSafe: isSafe,
-          timestamp: Date.now(),
-          ingredients: ingredientsList
-        });
+        try {
+          await addDoc(collection(db, 'scanHistory'), {
+            userId: user.uid,
+            foodDetected: foodDetected.charAt(0).toUpperCase() + foodDetected.slice(1),
+            allergensFound: allergensFound,
+            isSafe: isSafe,
+            timestamp: Date.now(),
+            ingredients: ingredientsList
+          });
+        } catch (err) {
+          handleFirestoreError(err, OperationType.CREATE, 'scanHistory');
+          return;
+        }
         onScanSaved();
       }
 

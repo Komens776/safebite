@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, handleFirestoreError, OperationType } from '../firebase';
 import { UserProfile, AllergenKey } from '../types';
 import AllergyChips from './AllergyChips';
 import { normalizeAllergen, ALLERGENS } from '../data/allergenMap';
@@ -96,10 +96,15 @@ export default function ProfileSettings({ user, profile, onProfileUpdated, isFir
 
       // Update Firestore document `/users/{userId}`
       const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
-        allergies: finalAllergies,
-        updatedAt: new Date().toISOString()
-      });
+      try {
+        await updateDoc(userRef, {
+          allergies: finalAllergies,
+          updatedAt: new Date().toISOString()
+        });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
+        return;
+      }
 
       setSaveSuccess(true);
       onProfileUpdated();

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { auth, db } from './firebase';
+import { auth, db, handleFirestoreError, OperationType } from './firebase';
 import { UserProfile, AlternativeMeal } from './types';
 import Navigation from './components/Navigation';
 import AuthScreens from './components/AuthScreens';
@@ -45,7 +45,13 @@ export default function App() {
   const fetchUserProfile = async (uid: string) => {
     try {
       const userRef = doc(db, 'users', uid);
-      const userSnap = await getDoc(userRef);
+      let userSnap;
+      try {
+        userSnap = await getDoc(userRef);
+      } catch (err) {
+        handleFirestoreError(err, OperationType.GET, `users/${uid}`);
+        return;
+      }
 
       if (userSnap.exists()) {
         const d = userSnap.data();
@@ -67,7 +73,12 @@ export default function App() {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };
-        await setDoc(userRef, fallbackProfile);
+        try {
+          await setDoc(userRef, fallbackProfile);
+        } catch (err) {
+          handleFirestoreError(err, OperationType.WRITE, `users/${uid}`);
+          return;
+        }
         setProfile(fallbackProfile);
       }
     } catch (err) {
