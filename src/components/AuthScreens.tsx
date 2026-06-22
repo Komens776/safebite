@@ -3,7 +3,8 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signInWithPopup, 
-  GoogleAuthProvider 
+  GoogleAuthProvider,
+  signInAnonymously
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType } from '../firebase';
@@ -20,6 +21,73 @@ export default function AuthScreens({ onLoginSuccess }: AuthScreensProps) {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleGuestSignIn = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      // 1. Attempt anonymous sign-in first
+      const credential = await signInAnonymously(auth);
+      const userRef = doc(db, 'users', credential.user.uid);
+      
+      let userSnap;
+      try {
+        userSnap = await getDoc(userRef);
+      } catch (err) {
+        console.warn('Anonymous profile get error, will back-create:', err);
+      }
+
+      if (!userSnap?.exists()) {
+        try {
+          await setDoc(userRef, {
+            uid: credential.user.uid,
+            email: 'guest@safebite.gh',
+            name: 'Guest Traveler 🇬🇭',
+            allergies: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+        } catch (err) {
+          handleFirestoreError(err, OperationType.WRITE, `users/${credential.user.uid}`);
+          return;
+        }
+      }
+      onLoginSuccess(credential.user.uid);
+    } catch (anonErr: any) {
+      console.warn('signInAnonymously failed or not enabled, using fallback generator:', anonErr);
+      
+      // 2. Fallback to generating a unique secure email-password guest credential
+      try {
+        const randomId = Math.floor(100000 + Math.random() * 900000);
+        const guestEmail = `guest_${randomId}@safebite.gh`;
+        const guestPassword = `safebiteGuest${randomId}`;
+        const guestName = `Guest User #${randomId}`;
+
+        const credential = await createUserWithEmailAndPassword(auth, guestEmail, guestPassword);
+        
+        try {
+          await setDoc(doc(db, 'users', credential.user.uid), {
+            uid: credential.user.uid,
+            email: guestEmail,
+            name: guestName,
+            allergies: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+        } catch (err) {
+          handleFirestoreError(err, OperationType.WRITE, `users/${credential.user.uid}`);
+          return;
+        }
+
+        onLoginSuccess(credential.user.uid);
+      } catch (fallbackErr: any) {
+        console.error('Guest email generation failed:', fallbackErr);
+        setError(fallbackErr.message || 'Could not log in as physical guest. Try conventional fields.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleGoogleSignIn = async () => {
     setError('');
@@ -144,7 +212,37 @@ export default function AuthScreens({ onLoginSuccess }: AuthScreensProps) {
           </div>
         )}
 
-        <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+        <div className="bg-blue-50/60 border border-blue-100 p-5 rounded-2xl text-center space-y-3">
+          <p className="text-xs font-bold text-slate-700 flex items-center justify-center gap-1.5">
+            <Sparkles className="w-4 h-4 text-blue-600 animate-pulse" />
+            Testing / Demo Mode Active
+          </p>
+          <button
+            id="auth-guest-quick-btn"
+            type="button"
+            onClick={handleGuestSignIn}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-white font-bold text-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 disabled:opacity-50 cursor-pointer active:translate-y-0"
+          >
+            {loading ? (
+              <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <>
+                <LogIn className="w-5 h-5 animate-pulse" />
+                <span>⚡ Instant 1-Click Guest Access</span>
+              </>
+            )}
+          </button>
+          <p className="text-[10px] text-slate-400 font-medium">Bypasses credentials to log you in securely in 1 second.</p>
+        </div>
+
+        <div className="relative flex py-1 items-center">
+          <div className="flex-grow border-t border-slate-200"></div>
+          <span className="flex-shrink mx-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-white">or sign in with password</span>
+          <div className="flex-grow border-t border-slate-200"></div>
+        </div>
+
+        <form className="mt-4 space-y-5" onSubmit={handleSubmit}>
           {!isLogin && (
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Name</label>
